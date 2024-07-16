@@ -1,51 +1,84 @@
 use std::{
 	error::Error as StdError,
 	fmt::{Display, Formatter, Result as FmtResult, Write as _},
+	num::NonZeroUsize,
 };
 
 #[derive(Debug)]
 pub struct CheckError {
 	kind: ErrorType,
-	line: usize,
+	line: Option<NonZeroUsize>,
 	source: Option<Box<dyn StdError + Send + Sync>>,
 }
 
 impl CheckError {
-	#[must_use]
-	pub fn new(kind: ErrorType, line: usize) -> Self {
+	#[must_use = "constructing an error does nothing if unused"]
+	pub const fn new(kind: ErrorType) -> Self {
 		Self {
 			kind,
-			line,
+			line: None,
 			source: None,
 		}
 	}
 
-	#[must_use]
-	pub fn with_source(
+	#[must_use = "constructing an error does nothing if unused"]
+	pub const fn with_line(kind: ErrorType, line: usize) -> Self {
+		Self {
+			kind,
+			line: NonZeroUsize::new(line),
+			source: None,
+		}
+	}
+
+	#[must_use = "constructing an error does nothing if unused"]
+	pub const fn with_source(kind: ErrorType, source: Box<dyn StdError + Send + Sync>) -> Self {
+		Self {
+			kind,
+			line: None,
+			source: Some(source),
+		}
+	}
+
+	#[must_use = "constructing an error does nothing if unused"]
+	pub const fn with_line_and_source(
 		kind: ErrorType,
 		line: usize,
 		source: Box<dyn StdError + Send + Sync>,
 	) -> Self {
 		Self {
 			kind,
-			line,
+			line: NonZeroUsize::new(line),
 			source: Some(source),
 		}
 	}
 
-	#[must_use]
-	pub fn epc_did_not_match(line: usize) -> Self {
-		Self::new(ErrorType::EpcDidNotMatch, line)
+	#[must_use = "constructing an error does nothing if unused"]
+	pub const fn epc_did_not_match(line: usize) -> Self {
+		Self::with_line(ErrorType::EpcDidNotMatch, line)
 	}
 
-	#[must_use]
-	pub fn epc_not_in_order(line: usize) -> Self {
-		Self::new(ErrorType::EpcNotInOrder, line)
+	#[must_use = "constructing an error does nothing if unused"]
+	pub const fn epc_not_in_order(line: usize) -> Self {
+		Self::with_line(ErrorType::EpcNotInOrder, line)
+	}
+
+	#[must_use = "constructing an error does nothing if unused"]
+	pub const fn tag_range_incomplete() -> Self {
+		Self::new(ErrorType::TagRangeIncomplete)
 	}
 
 	#[must_use = "retrieving the type has no effect if left unused"]
 	pub const fn kind(&self) -> ErrorType {
 		self.kind
+	}
+
+	#[must_use = "retrieving the line has no effect if left unused"]
+	pub const fn line(&self) -> Option<usize> {
+		if let Some(line) = self.line {
+			Some(line.get())
+		} else {
+			None
+		}
 	}
 
 	#[must_use = "consuming the error and retrieving the source has no effect if left unused"]
@@ -68,11 +101,20 @@ impl Display for CheckError {
 			ErrorType::EpcNotInOrder => {
 				f.write_str("epc was not in order")?;
 			}
+			ErrorType::TagRangeIncomplete => {
+				f.write_str("tag range is incomplete")?;
+			}
 		}
 
-		f.write_str(" (line: ")?;
-		Display::fmt(&self.line, f)?;
-		f.write_char(')')
+		if f.alternate() {
+			if let Some(line) = self.line {
+				f.write_str(" (line: ")?;
+				Display::fmt(&line, f)?;
+				f.write_char(')')?;
+			}
+		}
+
+		Ok(())
 	}
 }
 
@@ -88,4 +130,5 @@ impl StdError for CheckError {
 pub enum ErrorType {
 	EpcDidNotMatch,
 	EpcNotInOrder,
+	TagRangeIncomplete,
 }

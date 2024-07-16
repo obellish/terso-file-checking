@@ -2,6 +2,7 @@ use std::fs::read_to_string;
 
 use anyhow::Result;
 use clap::Parser as _;
+use color_print::cprint;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use terso_file_checking::{Args, CheckError, Line};
@@ -42,25 +43,48 @@ fn main() -> Result<()> {
 		}
 	}
 
-	for (line_no, parsed) in all_lines
-		.into_iter()
-		.filter(|line| line.did_pass)
-		.enumerate()
-	{
+	for (line_no, parsed) in all_lines.iter().filter(|line| line.did_pass).enumerate() {
 		if let Some(previous_line) = previous_line.replace(parsed.clone()) {
-			let current_epc = parsed.epc_data[20..].parse::<i16>()?;
-			let previous_epc = previous_line.epc_data[20..].parse::<i16>()?;
+			let current_epc = parsed
+				.epc_data
+				.serial_number()
+				.map(|l| l as i16)
+				.unwrap_or_default();
+			let previous_epc = previous_line
+				.epc_data
+				.serial_number()
+				.map(|l| l as i16)
+				.unwrap_or_default();
 
 			if (current_epc - previous_epc).abs() != 1 {
-				dbg!(&parsed);
-				dbg!(&previous_line);
 				errors.push(CheckError::epc_not_in_order(line_no));
 			}
 		}
 	}
 
+	let first = all_lines
+		.iter()
+		.find(|l| l.did_pass)
+		.and_then(|l| l.epc_data.serial_number())
+		.unwrap_or_default();
+
+	let last = all_lines
+		.iter()
+		.filter(|l| l.did_pass)
+		.last()
+		.and_then(|l| l.epc_data.serial_number())
+		.unwrap_or_default();
+
+	if (first..=last).count() != 2000 {
+		errors.push(CheckError::tag_range_incomplete());
+	}
+
 	for error in errors {
-		println!("Error - {error}");
+		cprint!("Error - <r>{error}");
+		if let Some(line) = error.line() {
+			cprint!("<m> (line: </><y>{}</><m>)", line + 17);
+		}
+		println!();
 	}
 
 	Ok(())

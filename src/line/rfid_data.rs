@@ -14,6 +14,19 @@ pub struct RfidData {
 	pub data: String,
 }
 
+impl RfidData {
+	#[must_use]
+	pub fn serial_number(&self) -> Option<u16> {
+		if self.error_code.is_some() {
+			return None;
+		}
+
+		let serial_part = &self.data[20..];
+
+		serial_part.parse().ok()
+	}
+}
+
 impl Debug for RfidData {
 	fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
 		let mut debug = f.debug_struct("RfidData");
