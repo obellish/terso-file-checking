@@ -34,8 +34,13 @@ impl CheckError {
 	}
 
 	#[must_use]
-	pub fn epc_prefix_did_not_match(line: usize) -> Self {
-		Self::new(ErrorType::EpcPrefixDidNotMatch, line)
+	pub fn epc_did_not_match(line: usize) -> Self {
+		Self::new(ErrorType::EpcDidNotMatch, line)
+	}
+
+	#[must_use]
+	pub fn epc_not_in_order(line: usize) -> Self {
+		Self::new(ErrorType::EpcNotInOrder, line)
 	}
 
 	#[must_use = "retrieving the type has no effect if left unused"]
@@ -57,8 +62,11 @@ impl CheckError {
 impl Display for CheckError {
 	fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
 		match self.kind {
-			ErrorType::EpcPrefixDidNotMatch => {
-				f.write_str("epc prefix did not match expected format")?;
+			ErrorType::EpcDidNotMatch => {
+				f.write_str("epc did not match expected format")?;
+			}
+			ErrorType::EpcNotInOrder => {
+				f.write_str("epc was not in order")?;
 			}
 		}
 
@@ -78,5 +86,6 @@ impl StdError for CheckError {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ErrorType {
-	EpcPrefixDidNotMatch,
+	EpcDidNotMatch,
+	EpcNotInOrder,
 }
