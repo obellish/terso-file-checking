@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use clap::Parser;
 
 pub use self::{
-	check_error::CheckError,
+	check_error::{CheckError, ErrorType, LineOrRange},
 	line::{Line, RfidData},
 };
 

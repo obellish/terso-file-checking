@@ -5,7 +5,7 @@ use clap::Parser as _;
 use color_print::cprint;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use terso_file_checking::{Args, CheckError, Line};
+use terso_file_checking::{Args, CheckError, Line, LineOrRange};
 
 fn main() -> Result<()> {
 	let args = match Args::try_parse() {
@@ -44,7 +44,9 @@ fn main() -> Result<()> {
 	}
 
 	for (line_no, parsed) in all_lines.iter().filter(|line| line.did_pass).enumerate() {
-		if let Some(previous_line) = previous_line.replace(parsed.clone()) {
+		if let Some((previous_line_no, previous_line)) =
+			previous_line.replace((line_no, parsed.clone()))
+		{
 			let current_epc = parsed
 				.epc_data
 				.serial_number()
@@ -57,7 +59,7 @@ fn main() -> Result<()> {
 				.unwrap_or_default();
 
 			if (current_epc - previous_epc).abs() != 1 {
-				errors.push(CheckError::epc_not_in_order(line_no));
+				errors.push(CheckError::epc_not_in_order(previous_line_no..line_no));
 			}
 		}
 	}
@@ -81,9 +83,19 @@ fn main() -> Result<()> {
 
 	for error in errors {
 		cprint!("Error - <r>{error}");
-		if let Some(line) = error.line() {
-			cprint!("<m> (line: </><y>{}</><m>)", line + 17);
+		if let Some(line_or_range) = error.line_or_range() {
+			match line_or_range {
+				LineOrRange::Line(line) => cprint!("<m> (line: </><y>{}</><m>)", line.get() + 17),
+				LineOrRange::Range(range) => cprint!(
+					"<m> (lines: </><y>{} - {}</><m>)",
+					range.start + 17,
+					range.end + 17
+				),
+			}
 		}
+		// if let Some(line) = error.line() {
+		// 	cprint!("<m> (line: </><y>{}</><m>)", line + 17);
+		// }
 		println!();
 	}
 
