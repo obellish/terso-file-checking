@@ -34,9 +34,11 @@ fn main() -> Result<()> {
 		.into_deserialize::<Line>()
 		.collect::<Result<Vec<_>, _>>()?;
 
-	for (line_no, parsed) in all_lines.iter().filter(|line| line.did_pass).enumerate() {
-		errors.extend(check_epc(&parsed.epc_data, line_no));
-		errors.extend(check_order(&parsed.epc_data, line_no, &mut previous_line));
+	for (line_no, parsed) in all_lines.iter().enumerate() {
+		if parsed.did_pass {
+			errors.extend(check_epc(&parsed.epc_data, line_no));
+			errors.extend(check_order(&parsed.epc_data, line_no, &mut previous_line));
+		}
 	}
 
 	errors.extend(check_range(&all_lines));
