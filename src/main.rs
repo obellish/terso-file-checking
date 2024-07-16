@@ -5,7 +5,7 @@ use clap::Parser as _;
 use color_print::cprint;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use terso_file_checking::{Args, CheckError, Line, LineOrRange};
+use terso_file_checking::{Args, CheckError, Line, LineOrRange, RfidData};
 
 fn main() -> Result<()> {
 	let args = match Args::try_parse() {
@@ -34,52 +34,15 @@ fn main() -> Result<()> {
 		.into_deserialize::<Line>()
 		.collect::<Result<Vec<_>, _>>()?;
 
-	for (line_no, parsed) in all_lines.iter().enumerate() {
-		if parsed.did_pass {
-			if let Some(e) = check_epc(&parsed.epc_data, line_no) {
-				errors.push(e);
-				continue;
-			}
-		}
+	for (line_no, parsed) in all_lines.iter().filter(|line| line.did_pass).enumerate() {
+		errors.extend(check_epc(&parsed.epc_data, line_no));
 	}
 
 	for (line_no, parsed) in all_lines.iter().filter(|line| line.did_pass).enumerate() {
-		if let Some((previous_line_no, previous_line)) =
-			previous_line.replace((line_no, parsed.clone()))
-		{
-			let current_epc = parsed
-				.epc_data
-				.serial_number()
-				.map(|l| l as i16)
-				.unwrap_or_default();
-			let previous_epc = previous_line
-				.epc_data
-				.serial_number()
-				.map(|l| l as i16)
-				.unwrap_or_default();
-
-			if (current_epc - previous_epc).abs() != 1 {
-				errors.push(CheckError::epc_not_in_order(previous_line_no..line_no));
-			}
-		}
+		errors.extend(check_order(&parsed.epc_data, line_no, &mut previous_line));
 	}
 
-	let first = all_lines
-		.iter()
-		.find(|l| l.did_pass)
-		.and_then(|l| l.epc_data.serial_number())
-		.unwrap_or_default();
-
-	let last = all_lines
-		.iter()
-		.filter(|l| l.did_pass)
-		.last()
-		.and_then(|l| l.epc_data.serial_number())
-		.unwrap_or_default();
-
-	if (first..=last).count() != 2000 {
-		errors.push(CheckError::tag_range_incomplete());
-	}
+	errors.extend(check_range(&all_lines));
 
 	for error in errors {
 		cprint!("Error - <r>{error}");
@@ -107,4 +70,43 @@ fn check_epc(epc_data: &str, line: usize) -> Option<CheckError> {
 	} else {
 		Some(CheckError::epc_did_not_match(line))
 	}
+}
+
+fn check_order(
+	rfid_data: &RfidData,
+	line: usize,
+	previous: &mut Option<(usize, RfidData)>,
+) -> Option<CheckError> {
+	if let Some((previous_line_no, previous_line)) = previous.replace((line, rfid_data.clone())) {
+		let current_epc = rfid_data
+			.serial_number()
+			.map(|l| l as i16)
+			.unwrap_or_default();
+		let previous_epc = previous_line
+			.serial_number()
+			.map(|l| l as i16)
+			.unwrap_or_default();
+
+		if (current_epc - previous_epc).abs() != 1 {
+			return Some(CheckError::epc_not_in_order(previous_line_no..line));
+		}
+	}
+
+	None
+}
+
+fn check_range(lines: &[Line]) -> Option<CheckError> {
+	let first = lines
+		.iter()
+		.find(|l| l.did_pass)
+		.and_then(|l| l.epc_data.serial_number())
+		.unwrap_or_default();
+	let last = lines
+		.iter()
+		.filter(|l| l.did_pass)
+		.last()
+		.and_then(|l| l.epc_data.serial_number())
+		.unwrap_or_default();
+
+	((last..=first).count() != 2000).then(CheckError::tag_range_incomplete)
 }
