@@ -2,7 +2,7 @@ use std::fs::read_to_string;
 
 use anyhow::Result;
 use clap::Parser as _;
-use color_print::cprint;
+use color_print::{cprint, cprintln};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use terso_file_checking::{Args, CheckError, Line, LineOrRange, RfidData};
@@ -36,15 +36,12 @@ fn main() -> Result<()> {
 
 	for (line_no, parsed) in all_lines.iter().filter(|line| line.did_pass).enumerate() {
 		errors.extend(check_epc(&parsed.epc_data, line_no));
-	}
-
-	for (line_no, parsed) in all_lines.iter().filter(|line| line.did_pass).enumerate() {
 		errors.extend(check_order(&parsed.epc_data, line_no, &mut previous_line));
 	}
 
 	errors.extend(check_range(&all_lines));
 
-	for error in errors {
+	for error in &errors {
 		cprint!("Error - <r>{error}");
 		if let Some(line_or_range) = error.line_or_range() {
 			match line_or_range {
@@ -58,6 +55,16 @@ fn main() -> Result<()> {
 		}
 		println!();
 	}
+
+	let error_count = errors.len();
+
+	print!("Total errors - ");
+
+	match error_count {
+		0 => cprintln!("<g>0"),
+		1..10 => cprintln!("<y>{}", error_count),
+		rest => cprintln!("<r>{}", rest),
+	};
 
 	Ok(())
 }
