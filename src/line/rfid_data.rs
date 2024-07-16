@@ -81,10 +81,6 @@ impl<'de> Visitor<'de> for RfidDataVisitor {
 			.ok_or_else(|| DeError::missing_field("error_code"))?;
 		let rfid_data = parts.next().ok_or_else(|| DeError::missing_field("data"))?;
 
-		// let error_code = error_code
-		// 	.parse()
-		// 	.map_err(|_| DeError::custom("failed to parse the error code"))?;
-
 		let error_code = match error_code {
 			"0" => None,
 			"1" => Some(ErrorCode::DidNotRespondToQuery),
