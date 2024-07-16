@@ -93,9 +93,6 @@ fn main() -> Result<()> {
 				),
 			}
 		}
-		// if let Some(line) = error.line() {
-		// 	cprint!("<m> (line: </><y>{}</><m>)", line + 17);
-		// }
 		println!();
 	}
 
