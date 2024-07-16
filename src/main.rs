@@ -41,7 +41,9 @@ fn main() -> Result<()> {
 
 	errors.extend(check_range(&all_lines));
 
-	for error in &errors {
+	let error_count = errors.len();
+
+	for error in errors {
 		cprint!("Error - <r>{error}");
 		if let Some(line_or_range) = error.line_or_range() {
 			match line_or_range {
@@ -55,8 +57,6 @@ fn main() -> Result<()> {
 		}
 		println!();
 	}
-
-	let error_count = errors.len();
 
 	print!("Total errors - ");
 
