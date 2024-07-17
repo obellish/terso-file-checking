@@ -81,10 +81,10 @@ fn check_epc(epc_data: &str, line: usize) -> Option<CheckError> {
 	}
 }
 
-fn check_order(
-	rfid_data: &RfidData,
+fn check_order<'a, 'b: 'a>(
+	rfid_data: &'a RfidData,
 	line: usize,
-	previous: &mut Option<(usize, RfidData)>,
+	previous: &'b mut Option<(usize, RfidData)>,
 ) -> Option<CheckError> {
 	if let Some((previous_line_no, previous_line)) = previous.replace((line, rfid_data.clone())) {
 		let current_epc = rfid_data
